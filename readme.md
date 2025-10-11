@@ -6,7 +6,7 @@ The project is run using docker, run it with the makefile:
 $ make
 ```
 
-.env file should be located in srv/web folder
+.env file should be located in web folder
 
 Whats inside .env
 ```
