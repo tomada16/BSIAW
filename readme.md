@@ -7,6 +7,7 @@ $ make
 ```
 
 .env file should be located in srv/web folder
+
 Whats inside .env
 ```
 DB_HOST=

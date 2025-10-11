@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 import os
 
-import flask
+from flask import Flask, render_template, request, redirect, url_for, flash
 import psycopg2
 from dotenv import load_dotenv
 
 
 load_dotenv(dotenv_path=".env")
 
-app = flask.Flask(__name__)
+app = Flask(__name__)
 
 # Connect to PostgreSQL
 conn = psycopg2.connect(
@@ -17,18 +17,36 @@ conn = psycopg2.connect(
     user=os.getenv("DB_USER"),
     password=os.getenv("DB_PASSWORD")
 )
+
+
 @app.route("/")
 def index():
-    return flask.render_template("index.html")
+    return render_template("index.html")
 
-@app.route("/login")
+
+@app.route("/login", methods=["POST"])
 def login():
-    return flask.render_template("login.html")
+    if request.method == "POST":
+        email = request.form["email"]
+        password = request.form["password"]
+        password_hash = "TODO"
+
+        #TODO change query according to database
+        cur = conn.cursor()
+        cur.execute("SELECT password_hash FROM users WHERE email=%s", (email,))
+        user = cur.fetchone()
+        cur.close()
+
+        #TODO check password if it matches then good
+        if user and True:
+            flash("Welcome {}".format(email), "success")
+            return redirect(url_for("index"))
+        else:
+            flash("Wrong email or password", "error")
+
+    return render_template("login.html")
+
 
 @app.route("/register")
 def register():
-    return flask.render_template("register.html")
-
-# Need to run from IDE
-if __name__ == "__main__":
-    app.run(debug=True)
+    return render_template("register.html")
