@@ -4,12 +4,14 @@ body {
     display: flex;
 }
 
-.login-page{
+.login-page,
+.register-page{
     justify-content: center;
     align-items: center;
 }
 
-.login-container{
+.login-container,
+.register-container{
     background-color: #DFD0B8;
     padding: 40px 30px;
     margin-top: 10%;
@@ -19,13 +21,16 @@ body {
     text-align: center;
 }
 
-.login-container h2{
+.login-container h2,
+.register-container h2{
     margin-bottom: 25px;
     font-size: 24px;
 }
 
 .login-container input[type="email"],
-.login-container input[type="password"]{
+.login-container input[type="password"],
+.register-container input[type="email"],
+.register-container input[type="password"]{
     width: 90%;
     padding: 12px;
     margin: 10px 0;
@@ -35,7 +40,8 @@ body {
     box-sizing: border-box;
 }
 
-.login-container button{
+.login-container button,
+.register-container button{
     border: 1px solid #393E46;
     border-radius: 5px;
     box-shadow: 0 2px 15px rgba(0,0,0,0.2);
