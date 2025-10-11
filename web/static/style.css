@@ -47,3 +47,23 @@ body {
     box-shadow: 0 2px 15px rgba(0,0,0,0.2);
     cursor: pointer;
 }
+
+.flashes{
+    margin-bottom: 12px;
+    margin-top: 12px;
+    text-align: center;
+}
+
+.flash {
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+.flash.error{
+    background-color: #393E46;
+    border: 1px solid #222831;
+    border-radius: 5px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.2);
+    color: red;
+}
