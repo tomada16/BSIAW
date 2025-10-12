@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import os
-
+import hashlib
 from flask import Flask, render_template, request, redirect, url_for, flash
 import psycopg2
 from dotenv import load_dotenv
@@ -15,7 +15,7 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY") or "secret"
 # Connect to PostgreSQL
 conn = psycopg2.connect(
     host=os.getenv("DB_HOST"),
-    database=os.getenv("DB_NAME"),
+    database="bsiaw",
     user=os.getenv("DB_USER"),
     password=os.getenv("DB_PASSWORD")
 )
@@ -31,16 +31,15 @@ def login():
     if request.method == "POST":
         email = request.form["email"]
         password = request.form["password"]
-        password_hash = "TODO"
+        password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
 
-        #TODO change query according to database
-        """cur = conn.cursor()
+        cur = conn.cursor()
         cur.execute("SELECT password_hash FROM users WHERE email=%s", (email,))
-        user = cur.fetchone()
-        cur.close()"""
+        database_hash = cur.fetchone()
+        cur.close()
 
         #TODO check password if it matches then good
-        if True:
+        if database_hash and database_hash[0] == password_hash:
             flash("Welcome {}".format(email), "success")
             return redirect(url_for("index"))
         else:
@@ -59,12 +58,13 @@ def register():
         if password != confirm_password:
             flash("Hasła nie są takie same!", "error")
             return redirect(url_for("register"))
-
+        
         #TODO hash passowrd
+        password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
 
         cur = conn.cursor()
         try:
-            cur.execute("INSERT INTO users (email, password) VALUES (%s, %s)", (email, password))
+            cur.execute("INSERT INTO users (email, password_hash) VALUES (%s, %s)", (email, password_hash))
             conn.commit()
             flash("Zarejestrowano pomyślnie!", "success")
             return redirect(url_for("login"))

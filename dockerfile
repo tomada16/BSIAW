@@ -4,6 +4,7 @@ RUN apk add python3 py3-psycopg2 py3-flask postgresql17 py3-dotenv
 RUN mkdir /run/postgresql
 RUN chown postgres:postgres /run/postgresql/
 COPY docker/setup.sh /
+COPY docker/database.sql /srv/
 RUN chmod +x /setup.sh
 RUN mkdir /srv/web
 COPY web/ /srv/web
