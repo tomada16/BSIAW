@@ -1,23 +1,19 @@
 #!/usr/bin/env python3
-import os
 import hashlib
 from flask import Flask, render_template, request, redirect, url_for, flash
 import psycopg2
-from dotenv import load_dotenv
 
-
-load_dotenv(dotenv_path=".env")
 
 app = Flask(__name__)
 # Temporary will be changed when sesions are done | "secret" will be later deleted
-app.secret_key = os.getenv("FLASK_SECRET_KEY") or "secret"
+app.secret_key = "secret"
 
 # Connect to PostgreSQL
 conn = psycopg2.connect(
-    host=os.getenv("DB_HOST"),
+    host="localhost",
     database="bsiaw",
-    user=os.getenv("DB_USER"),
-    password=os.getenv("DB_PASSWORD")
+    user="postgres",
+    password=""
 )
 
 
