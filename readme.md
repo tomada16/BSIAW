@@ -1,18 +1,10 @@
 # BSIAW
 
-The project is run using docker, run it with the makefile:
+The project is run using **Docker**, run it with the makefile:
 
 ```
 $ make
 ```
 
-.env file should be located in web folder
-
-Whats inside .env
-```
-DB_HOST=
-DB_NAME=
-DB_USER=
-DB_PASSWORD=
-FLASK_SECRET_KEY=
-```
+To access the website, open your browser and go to:  
+[http://localhost:7708](http://localhost:7708)
