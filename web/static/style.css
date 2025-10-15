@@ -60,10 +60,10 @@ body {
     margin-bottom: 8px;
 }
 
-.flash.error{
-    background-color: #393E46;
-    border: 1px solid #222831;
+.flash.error,
+.flash.success{
+    background-color: #948979;
     border-radius: 5px;
-    box-shadow: 0 2px 15px rgba(0,0,0,0.2);
-    color: red;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    color: black;
 }

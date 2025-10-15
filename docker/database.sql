@@ -69,7 +69,7 @@ ALTER TABLE public.sessions OWNER TO postgres;
 CREATE TABLE public.users (
     id bigint NOT NULL,
     login character varying(32),
-    email text NOT NULL,
+    email text NOT NULL UNIQUE,
     password_hash character varying(64),
     password_salt character varying(16)
 );
