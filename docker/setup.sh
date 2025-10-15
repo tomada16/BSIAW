@@ -7,6 +7,4 @@ su postgres -c 'cat /srv/database.sql | psql'
 # run flask in debug mode
 cd /srv/web && flask -A main run -h 0.0.0.0 -p 80 --debug &
 
-
-
 tail -f /dev/null

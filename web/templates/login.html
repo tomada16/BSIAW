@@ -4,15 +4,27 @@
     <meta charset="UTF-8">
     <title>Login</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script type="text/javascript" src="lib/sha256.js"></script>
 </head>
 <body class="login-page">
     <div class="login-container">
         <h2>Logowanie</h2>
-        <form action="/login" method="post">
+        <form action="/login" method="post" id="login-form">
             <input type="email" name="email" placeholder="E-mail" required><br>
             <input type="password" name="password" placeholder="Hasło" required><br>
             <button type="submit">Zaloguj się</button>
         </form>
+
+        <script>
+            document.querySelector('#login-form').addEventListener("submit", (e) => {
+                e.preventDefault();
+                const pass = e.target.querySelector("[name='password']");
+                pass.value = sha256(pass.value);
+                e.target.submit();
+            });
+        </script>
+
+
         {# sekcja flash #}
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}

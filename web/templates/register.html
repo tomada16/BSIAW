@@ -4,16 +4,28 @@
     <meta charset="UTF-8">
     <title>Rejestracja</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script type="text/javascript" src="lib/sha256.js"></script>
 </head>
 <body class="register-page">
     <div class="register-container">
         <h2>Rejestracja</h2>
-        <form action="/register" method="post">
+        <form action="/register" method="post" id="register-form">
             <input type="email" name="email" placeholder="E-mail" required><br>
             <input type="password" name="password" placeholder="Hasło" required><br>
             <input type="password" name="confirm_password" placeholder="Powtórz hasło" required><br>
             <button type="submit">Zarejestruj się</button>
         </form>
+
+        <script>
+            document.querySelector('#register-form').addEventListener("submit", (e) => {
+                e.preventDefault();
+                const firstPass = e.target.querySelector("[name='password']");
+                const secondPass = e.target.querySelector("[name='confirm_password']");
+                firstPass.value = sha256(firstPass.value);
+                secondPass.value = sha256(secondPass.value);
+                e.target.submit();
+            });
+        </script>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}

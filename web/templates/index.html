@@ -3,7 +3,20 @@
     <title>Witaj</title>
 </head>
 <body>
-    <h1>Witaj tutaj</h1>
-    <a href="/login">Zaloguj się</a> | <a href="/register">Rejestracja</a>
+    <h1>Witaj, {{ user_email }}</h1>
+    <p>Twój klucz sesji się wyczerpie po {{ session_timeout }} sekundach.
+        Odśwież, aby automatycznie się wylogować po tym czasie.</p>
+    <a href="/login">Zaloguj się</a>
+    | <a href="/register">Rejestracja</a>
+    | <a href="/logout">Wyloguj się</a>
+    <br><br>
+    {% if usernames %}
+    <table border="1">
+        <tr><th>User email</th></tr>
+        {% for item in usernames %}
+        <tr><td>{{ item }}</td></tr>
+        {% endfor %}
+    </table>
+    {% endif %}
 </body>
 </html>

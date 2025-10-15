@@ -1,8 +1,23 @@
 #!/usr/bin/env python3
-import hashlib
-from flask import Flask, render_template, request, redirect, url_for, flash
-import psycopg2
 
+from flask import (
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    flash,
+    send_from_directory,
+)
+from typing import Optional, Self
+import datetime
+import hashlib
+import flask
+import psycopg2
+import time
+import os
+
+SESSION_TIMEOUT = 30
 
 app = Flask(__name__)
 # Temporary will be changed when sesions are done | "secret" will be later deleted
@@ -10,64 +25,260 @@ app.secret_key = "secret"
 
 # Connect to PostgreSQL
 conn = psycopg2.connect(
-    host="localhost",
-    database="bsiaw",
-    user="postgres",
-    password=""
+    host="localhost", database="bsiaw", user="postgres", password=""
 )
+
+
+class Session:
+    """Represents a session object. Used internally in User."""
+
+    key: str
+    timeout: int
+
+    def __init__(self, key, timeout):
+        self.key = key
+        self.timeout = timeout
+
+
+class User:
+    """ORM representation of a user. If the user already exists, it will be
+    automatically loaded from the database when calling the constructor."""
+
+    user_id: int
+    login: str
+    email: str
+    password_hash: str
+    password_salt: str
+
+    def __init__(self, email: str):
+        self.user_id = None
+        self.email = email
+        self.login = None
+        self.password_hash = None
+        self.password_salt = None
+
+        if self.exists():
+            self.load()
+
+    @classmethod
+    def from_session_key(cls, key) -> Optional[Self]:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT user_id FROM sessions WHERE session_key=%s", (key,)
+            )
+            r = cur.fetchone()
+            if not r:
+                return None
+            user_id = r[0]
+            cur.execute("SELECT email FROM users WHERE id=%s", (user_id,))
+            r = cur.fetchone()
+            if not r:
+                return None
+            return cls(r[0])
+
+    @staticmethod
+    def get_all_emails():
+        with conn.cursor() as cur:
+            cur.execute("SELECT email FROM users")
+            r = cur.fetchall()
+            return [x[0] for x in r]
+        return []
+
+    def exists(self):
+        """Returns True if the user exists in the database."""
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM users WHERE email=%s", (self.email,))
+            return cur.fetchone() is not None
+
+    def check_password(self, passwd):
+        """Check the password for the user. Returns True if it matches the one
+        in the database."""
+        passwd_hash = hashlib.sha256(
+            bytes(passwd + self.password_salt, "utf8")
+        ).hexdigest()
+        return passwd_hash == self.password_hash
+
+    def set_password(self, passwd):
+        """Create a new password salt & hash for the user."""
+        self.password_salt = os.getrandom(8, os.GRND_RANDOM).hex()
+        self.password_hash = hashlib.sha256(
+            bytes(passwd + self.password_salt, "utf8")
+        ).hexdigest()
+
+    def load(self):
+        """Loads the user data from the database. Does not throw if the user
+        does not exist."""
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, login, email, password_hash, password_salt FROM "
+                "users WHERE email=%s",
+                (self.email,),
+            )
+            res = cur.fetchone()
+            if not res:
+                return
+
+            (
+                self.user_id,
+                self.login,
+                self.email,
+                self.password_hash,
+                self.password_salt,
+            ) = res
+
+    def save(self):
+        """Store the data back into the database."""
+        with conn.cursor() as cur:
+            if self.exists():
+                raise NotImplementedError("cannot modify user")
+            else:
+                cur.execute(
+                    "INSERT INTO users (login, email, password_hash, "
+                    "password_salt) VALUES (%s, %s, %s, %s)",
+                    (
+                        self.login,
+                        self.email,
+                        self.password_hash,
+                        self.password_salt,
+                    ),
+                )
+
+        conn.commit()
+
+    def __get_session(self) -> Optional[Session]:
+        """Returns the session data for this user, or None."""
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT session_key, valid_until FROM sessions WHERE user_id=%s",
+                (self.user_id,),
+            )
+            data = cur.fetchone()
+            if not data:
+                return None
+            return Session(data[0], data[1].timestamp())
+
+    def get_session_key(self) -> Optional[str]:
+        s = self.__get_session()
+        return s.key if s is not None else None
+
+    def check_session(self, session_key) -> bool:
+        """Compares the given `session_key` to the one in the sessions table,
+        and checks the timeout value. Returns True if its valid."""
+        s = self.__get_session()
+        if not s or s.key != session_key:
+            return False
+        return time.time() <= s.timeout
+
+    def create_session(self, timeout_sec) -> str:
+        """Create a session for the user."""
+        with conn.cursor() as cur:
+            if self.__get_session():
+                cur.execute(
+                    "DELETE FROM sessions WHERE user_id=%s", (self.user_id,)
+                )
+
+            k = os.getrandom(16, os.GRND_RANDOM).hex()
+            t = datetime.datetime.fromtimestamp(int(time.time()) + timeout_sec)
+            cur.execute(
+                "INSERT INTO sessions (session_key, valid_until, user_id) VALUES (%s, %s, %s)",
+                (k, t, self.user_id),
+            )
+
+        conn.commit()
 
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    if "token" not in request.cookies:
+        return redirect(url_for("login"))
+
+    token = request.cookies["token"]
+    user = User.from_session_key(token)
+    if not user or user.user_id is None or not user.check_session(token):
+        return redirect(url_for("login"))
+
+    usernames = []
+    if user.email == "admin@student.pwr.edu.pl":
+        usernames = User.get_all_emails()
+    return render_template(
+        "index.html",
+        user_email=user.email,
+        session_timeout=SESSION_TIMEOUT,
+        usernames=usernames,
+    )
+
+
+@app.route("/logout", methods=["GET"])
+def logout():
+    r = redirect(url_for("login"))
+    for cookie in request.cookies:
+        r.delete_cookie(cookie)
+    return r
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    if request.method == "POST":
-        email = request.form["email"]
-        password = request.form["password"]
-        password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
+    if request.method == "GET":
+        return render_template("login.html")
 
-        cur = conn.cursor()
-        cur.execute("SELECT password_hash FROM users WHERE email=%s", (email,))
-        database_hash = cur.fetchone()
-        cur.close()
+    if "email" not in request.form or "password" not in request.form:
+        return render_template("bad_request.html"), 401
 
-        #TODO check password if it matches then good
-        if database_hash and database_hash[0] == password_hash:
-            flash("Welcome {}".format(email), "success")
-            return redirect(url_for("index"))
-        else:
-            flash("Zły e-mail lub hasło", "error")
+    email = request.form["email"]
+    password = request.form["password"]
 
-    return render_template("login.html")
+    user = User(email)
+    if user.user_id is None:
+        flash("Zły e-mail lub hasło", "error")
+        return redirect(url_for("login"))
+
+    if not user.check_password(password):
+        flash("Zły e-mail lub hasło", "error")
+        return redirect(url_for("login"))
+
+    user.create_session(SESSION_TIMEOUT)
+
+    flash("Welcome {}".format(email), "success")
+    r = flask.make_response(redirect(url_for("index")))
+    r.set_cookie(
+        "token", user.get_session_key(), httponly=True, samesite="Strict"
+    )
+    return r
 
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    if request.method == "POST":
-        email = request.form["email"]
-        password = request.form["password"]
-        confirm_password = request.form.get("confirm_password")
+    if request.method == "GET":
+        return render_template("register.html")
 
-        if password != confirm_password:
-            flash("Hasła nie są takie same!", "error")
-            return redirect(url_for("register"))
-        
-        #TODO hash passowrd
-        password_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
+    if (
+        "email" not in request.form
+        or "password" not in request.form
+        or "confirm_password" not in request.form
+    ):
+        return render_template("bad_request.html"), 401
 
-        cur = conn.cursor()
-        try:
-            cur.execute("INSERT INTO users (email, password_hash) VALUES (%s, %s)", (email, password_hash))
-            conn.commit()
-            flash("Zarejestrowano pomyślnie!", "success")
-            return redirect(url_for("login"))
-        except Exception as e:
-            conn.rollback()
-            flash("Ten email już istnieje lub wystąpił błąd przy rejestracji.", "error")
-        finally:
-            cur.close()
+    email = request.form["email"]
+    password = request.form["password"]
+    confirm_password = request.form["confirm_password"]
 
-    return render_template("register.html")
+    if password != confirm_password:
+        flash("Hasła nie są takie same!", "error")
+        return redirect(url_for("register"))
+
+    user = User(email)
+    if user.user_id is not None:
+        flash("Użytkownik już istnieje.", "error")
+        return redirect(url_for("register"))
+
+    user.set_password(password)
+    user.save()
+
+    flash("Zarejestrowano pomyślnie!", "success")
+    return redirect(url_for("login"))
+
+
+@app.route("/lib/<path:filename>", methods=["GET"])
+def lib(filename):
+    return send_from_directory("lib", filename)
