@@ -239,7 +239,8 @@ def login():
 
     user.create_session(SESSION_TIMEOUT)
 
-    flash("Welcome {}".format(email), "success")
+    flash("Witaj {}".format(email), "success")
+
     r = flask.make_response(redirect(url_for("index")))
     r.set_cookie(
         "token", user.get_session_key(), httponly=True, samesite="Strict"

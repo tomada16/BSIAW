@@ -1,22 +1,32 @@
 <html>
 <head>
-    <title>Witaj</title>
+    <meta charset="UTF-8">
+    <title>Strona główna</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
-    <h1>Witaj, {{ user_email }}</h1>
-    <p>Twój klucz sesji się wyczerpie po {{ session_timeout }} sekundach.
-        Odśwież, aby automatycznie się wylogować po tym czasie.</p>
-    <a href="/login">Zaloguj się</a>
-    | <a href="/register">Rejestracja</a>
-    | <a href="/logout">Wyloguj się</a>
-    <br><br>
-    {% if usernames %}
-    <table border="1">
-        <tr><th>User email</th></tr>
-        {% for item in usernames %}
-        <tr><td>{{ item }}</td></tr>
-        {% endfor %}
-    </table>
-    {% endif %}
+<body class="main-page">
+    <div class="main-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="flashes">
+              {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+        <p>Twój klucz sesji się wyczerpie po {{ session_timeout }} sekundach.
+            Odśwież, aby automatycznie się wylogować po tym czasie.</p>
+        <a href="/logout">Wyloguj się</a>
+        <br><br>
+        {% if usernames %}
+        <table border="1">
+            <tr><th>User email</th></tr>
+            {% for item in usernames %}
+            <tr><td>{{ item }}</td></tr>
+            {% endfor %}
+        </table>
+        {% endif %}
+    </div>
 </body>
 </html>
