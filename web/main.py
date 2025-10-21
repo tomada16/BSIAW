@@ -50,10 +50,10 @@ class User:
     password_hash: str
     password_salt: str
 
-    def __init__(self, email: str):
+    def __init__(self, email: str, login: str = None):
         self.user_id = None
         self.email = email
-        self.login = None
+        self.login = login
         self.password_hash = None
         self.password_salt = None
 
@@ -70,11 +70,11 @@ class User:
             if not r:
                 return None
             user_id = r[0]
-            cur.execute("SELECT email FROM users WHERE id=%s", (user_id,))
+            cur.execute("SELECT email, login FROM users WHERE id=%s", (user_id,))
             r = cur.fetchone()
             if not r:
                 return None
-            return cls(r[0])
+            return cls(r[0],r[1])
 
     @staticmethod
     def get_all_emails():
@@ -82,7 +82,6 @@ class User:
             cur.execute("SELECT email FROM users")
             r = cur.fetchall()
             return [x[0] for x in r]
-        return []
 
     def exists(self):
         """Returns True if the user exists in the database."""
@@ -222,18 +221,15 @@ def login():
     if request.method == "GET":
         return render_template("login.html")
 
-    if "email" not in request.form or "password" not in request.form:
-        return render_template("bad_request.html"), 401
-
     email = request.form["email"]
     password = request.form["password"]
 
-    user = User(email)
-    if user.user_id is None:
-        flash("Zły e-mail lub hasło", "error")
-        return redirect(url_for("login"))
+    if not email or not password:
+        flash("Brakuje jednego z pól", "error")
+        return render_template("bad_request.html"), 401
 
-    if not user.check_password(password):
+    user = User(email)
+    if not user.user_id or not user.check_password(password):
         flash("Zły e-mail lub hasło", "error")
         return redirect(url_for("login"))
 
@@ -253,29 +249,26 @@ def register():
     if request.method == "GET":
         return render_template("register.html")
 
-    if (
-        "email" not in request.form
-        or "password" not in request.form
-        or "confirm_password" not in request.form
-    ):
-        return render_template("bad_request.html"), 401
-
+    login = request.form["login"]
     email = request.form["email"]
     password = request.form["password"]
     confirm_password = request.form["confirm_password"]
+
+    if not all([login, email, password, confirm_password]):
+        flash("Brak wszystkich wymaganych pól","error")
+        return redirect(url_for("register"))
 
     if password != confirm_password:
         flash("Hasła nie są takie same!", "error")
         return redirect(url_for("register"))
 
-    user = User(email)
-    if user.user_id is not None:
+    user = User(email, login)
+    if user.user_id:
         flash("Użytkownik już istnieje.", "error")
         return redirect(url_for("register"))
 
     user.set_password(password)
     user.save()
-
     flash("Zarejestrowano pomyślnie!", "success")
     return redirect(url_for("login"))
 

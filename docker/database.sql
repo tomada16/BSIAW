@@ -117,11 +117,6 @@ COPY public.sessions (session_key, valid_until, user_id) FROM stdin;
 -- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-INSERT INTO public.users VALUES (0, NULL, 'admin@student.pwr.edu.pl',
-        '21d58ab0ef790ef5135bb6ab146258fd96bfb72cf046cce81fee8bf50595514d',
-        '2f87d85685ba0c11');
-
-
 --
 -- Name: users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --

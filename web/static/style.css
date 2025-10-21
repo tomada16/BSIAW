@@ -45,10 +45,8 @@ body {
     font-size: 24px;
 }
 
-.login-container input[type="email"],
-.login-container input[type="password"],
-.register-container input[type="email"],
-.register-container input[type="password"]{
+.login-container input,
+.register-container input{
     width: 90%;
     padding: 12px;
     margin: 10px 0;
