@@ -8,6 +8,7 @@ from flask import (
     url_for,
     flash,
     send_from_directory,
+    abort,
 )
 from typing import Optional, Self
 import datetime
@@ -186,47 +187,20 @@ class User:
 
         conn.commit()
 
-        # ------------------------------------------------------------
-        # Friends helpers
-        # ------------------------------------------------------------
-        def get_friend_emails(self):
-            """
-            Returns a list of friend emails for this user.
-            Works directly on the friendships table (does not require the view).
-            """
-            if self.user_id is None:
-                return []
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT u.email
-                    FROM public.friendships f
-                    JOIN public.users u
-                      ON u.id = CASE
-                                   WHEN f.user_id_low = %s THEN f.user_id_high
-                                   ELSE f.user_id_low
-                                END
-                    WHERE %s IN (f.user_id_low, f.user_id_high)
-                    ORDER BY u.email
-                    """,
-                    (self.user_id, self.user_id),
-                )
-                rows = cur.fetchall()
-                return [r[0] for r in rows]
-
     # ------------------------------------------------------------
     # Friends helpers
     # ------------------------------------------------------------
-    def get_friend_emails(self):
+    def get_friends(self) -> list[tuple[int, str]]:
         """
-        Returns a list of friend emails for this user.
-        Works directly on the friendships table (does not require the view).
+        Returns (friend_id, friend_email) for this user.
+        Uses the undirected friendships table.
         """
         if self.user_id is None:
             return []
         with conn.cursor() as cur:
-            cur.execute("""
-                SELECT u.email
+            cur.execute(
+                """
+                SELECT u.id, u.email
                 FROM public.friendships f
                 JOIN public.users u
                   ON u.id = CASE
@@ -234,33 +208,92 @@ class User:
                                ELSE f.user_id_low
                             END
                 WHERE %s IN (f.user_id_low, f.user_id_high)
-                ORDER BY u.email""",
+                ORDER BY u.email
+                """,
                 (self.user_id, self.user_id),
             )
             rows = cur.fetchall()
-            return [r[0] for r in rows]
+            return [(r[0], r[1]) for r in rows]
 
-@app.route("/")
-def index():
+    def is_friend_with(self, other_user_id: int) -> bool:
+        """Returns True if `other_user_id` is a friend of this user."""
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT 1
+                FROM public.friendships f
+                WHERE (%s = f.user_id_low AND %s = f.user_id_high)
+                   OR (%s = f.user_id_high AND %s = f.user_id_low)
+                """,
+                (
+                    min(self.user_id, other_user_id),
+                    max(self.user_id, other_user_id),
+                    min(self.user_id, other_user_id),
+                    max(self.user_id, other_user_id),
+                ),
+            )
+            return cur.fetchone() is not None
+
+
+def _require_user():
+    """Small helper to fetch the logged-in user from cookie or redirect."""
     if "token" not in request.cookies:
-        return redirect(url_for("login"))
-
+        return None
     token = request.cookies["token"]
     user = User.from_session_key(token)
     if not user or user.user_id is None or not user.check_session(token):
+        return None
+    return user
+
+@app.route("/")
+def index():
+    user = _require_user()
+    if user is None:
         return redirect(url_for("login"))
 
-    # Show friends of the logged-in user on index.html.
-    # Template expects `usernames` -> pass friend emails there.
-    usernames = user.get_friend_emails()
+    # Left column: friend list
+    friends = user.get_friends()  # list of (id, email)
 
     return render_template(
         "index.html",
         user_email=user.email,
         session_timeout=SESSION_TIMEOUT,
-        usernames=usernames,
+        friends=friends,
+        selected_friend=None,
     )
 
+
+@app.route("/chat/<int:friend_id>")
+def chat(friend_id: int):
+    """
+    Opens the chat panel next to the friend list.
+    This does not send/receive messages yet; it only shows the UI with the selected friend.
+    """
+    user = _require_user()
+    if user is None:
+        return redirect(url_for("login"))
+
+    # Security: only allow opening chat with actual friends
+    if not user.is_friend_with(friend_id):
+        abort(404)
+
+    # Resolve friend's email for display
+    with conn.cursor() as cur:
+        cur.execute("SELECT id, email FROM public.users WHERE id=%s", (friend_id,))
+        row = cur.fetchone()
+        if not row:
+            abort(404)
+        friend = {"id": row[0], "email": row[1]}
+
+    friends = user.get_friends()
+
+    return render_template(
+        "index.html",
+        user_email=user.email,
+        session_timeout=SESSION_TIMEOUT,
+        friends=friends,
+        selected_friend=friend,
+    )
 
 @app.route("/logout", methods=["GET"])
 def logout():

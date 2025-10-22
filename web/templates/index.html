@@ -3,6 +3,17 @@
     <meta charset="UTF-8">
     <title>Strona główna</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Minimal layout helpers in case your CSS doesn't include them yet */
+        .layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; align-items: start; }
+        .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; background: #fff; }
+        .friends-table { width: 100%; border-collapse: collapse; }
+        .friends-table th, .friends-table td { border: 1px solid #ccc; padding: 6px 8px; }
+        .friends-table a { text-decoration: none; }
+        .chat-box { min-height: 320px; }
+        .chat-header { font-weight: bold; margin-bottom: 8px; }
+        .muted { color: #777; }
+    </style>
 </head>
 <body class="main-page">
     <div class="main-container">
@@ -15,18 +26,46 @@
             </div>
           {% endif %}
         {% endwith %}
+
         <p>Twój klucz sesji się wyczerpie po {{ session_timeout }} sekundach.
             Odśwież, aby automatycznie się wylogować po tym czasie.</p>
         <a href="/logout">Wyloguj się</a>
+
         <br><br>
-        {% if usernames %}
-        <table border="1">
-            <tr><th>Znajomi</th></tr>
-            {% for item in usernames %}
-            <tr><td>{{ item }}</td></tr>
-            {% endfor %}
-        </table>
-        {% endif %}
+
+        <div class="layout">
+            <!-- Left: Chat pane -->
+            <div class="card chat-box">
+                {% if selected_friend %}
+                    <div class="chat-header">Chat with {{ selected_friend.email }}</div>
+                    <div id="chat-messages" class="muted">
+                        <!-- No backend for messages yet; placeholder only -->
+                        No messages yet. (This panel opens when you click a friend.)
+                    </div>
+                {% else %}
+                    <div class="muted">Select a friend on the left to open the chat here.</div>
+                {% endif %}
+            </div>
+            <!-- Right: Friends list -->
+            <div class="card">
+                <h3>Friends</h3>
+                {% if friends and friends|length > 0 %}
+                <table class="friends-table">
+                    <tr><th>User email</th></tr>
+                    {% for fid, email in friends %}
+                    <tr>
+                        <td>
+                            <!-- Clicking a friend opens the chat on the right -->
+                            <a href="{{ url_for('chat', friend_id=fid) }}">{{ email }}</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+                {% else %}
+                    <p class="muted">Brak znajomych do wyświetlenia.</p>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </body>
 </html>
