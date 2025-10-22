@@ -197,6 +197,26 @@ ON CONFLICT DO NOTHING;
 -- -- Get all friends for a given user (e.g., user id 1):
 -- SELECT friend_id FROM public.user_friends WHERE user_id = 1 ORDER BY friend_id;
 
+    -- ===========================
+-- Messages table (simple chat)
+-- ===========================
+-- Stores direct messages between two users. We keep both directions;
+-- queries filter by the pair (me, friend).
+
+CREATE TABLE public.messages (
+    id          bigserial PRIMARY KEY,
+    sender_id   bigint NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    receiver_id bigint NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    body        text   NOT NULL CHECK (length(body) <= 2000),
+    created_at  timestamp without time zone NOT NULL DEFAULT now()
+);
+
+-- Helpful indexes for conversation lookups and ordering
+CREATE INDEX messages_conv_idx ON public.messages
+    (LEAST(sender_id, receiver_id), GREATEST(sender_id, receiver_id), created_at);
+
+CREATE INDEX messages_receiver_idx ON public.messages (receiver_id, created_at);
+
 --
 -- PostgreSQL database dump complete
 --

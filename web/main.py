@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import eventlet; eventlet.monkey_patch()
 from flask import (
     Flask,
     render_template,
@@ -10,19 +11,32 @@ from flask import (
     send_from_directory,
     abort,
 )
-from typing import Optional, Self
+from flask_socketio import SocketIO, emit, join_room, leave_room, disconnect
+from typing import Optional, Self, List, Tuple
 import datetime
 import hashlib
 import flask
 import psycopg2
 import time
 import os
+import sys
+
 
 SESSION_TIMEOUT = 120
+MAX_MESSAGE_LEN = 2000
 
 app = Flask(__name__)
 # Temporary will be changed when sesions are done | "secret" will be later deleted
 app.secret_key = "secret"
+
+# Socket.IO setup (uses cookies for auth; CORS same-origin by default)
+socketio = SocketIO(
+    app,
+    async_mode="eventlet",
+    cors_allowed_origins="*",
+    logger=True,
+    engineio_logger=True
+)
 
 # Connect to PostgreSQL
 conn = psycopg2.connect(
@@ -75,14 +89,7 @@ class User:
             r = cur.fetchone()
             if not r:
                 return None
-            return cls(r[0],r[1])
-
-    @staticmethod
-    def get_all_emails():
-        with conn.cursor() as cur:
-            cur.execute("SELECT email FROM users")
-            r = cur.fetchall()
-            return [x[0] for x in r]
+            return cls(r[0], r[1])
 
     def exists(self):
         """Returns True if the user exists in the database."""
@@ -146,7 +153,7 @@ class User:
 
         conn.commit()
 
-    def __get_session(self) -> Optional[Session]:
+    def __get_session(self) -> Optional["Session"]:
         """Returns the session data for this user, or None."""
         with conn.cursor() as cur:
             cur.execute(
@@ -190,11 +197,8 @@ class User:
     # ------------------------------------------------------------
     # Friends helpers
     # ------------------------------------------------------------
-    def get_friends(self) -> list[tuple[int, str]]:
-        """
-        Returns (friend_id, friend_email) for this user.
-        Uses the undirected friendships table.
-        """
+    def get_friends(self) -> List[Tuple[int, str]]:
+        """Returns (friend_id, friend_email) for this user."""
         if self.user_id is None:
             return []
         with conn.cursor() as cur:
@@ -217,6 +221,8 @@ class User:
 
     def is_friend_with(self, other_user_id: int) -> bool:
         """Returns True if `other_user_id` is a friend of this user."""
+        if self.user_id is None:
+            return False
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -235,6 +241,9 @@ class User:
             return cur.fetchone() is not None
 
 
+# ------------------------------------------------------------
+# Helpers for HTTP + Socket handlers
+# ------------------------------------------------------------
 def _require_user():
     """Small helper to fetch the logged-in user from cookie or redirect."""
     if "token" not in request.cookies:
@@ -245,39 +254,52 @@ def _require_user():
         return None
     return user
 
+
+def _current_user_ws():
+    """Auth for Socket.IO: read cookie token and validate session."""
+    token = request.cookies.get("token")
+    if not token:
+        return None
+    user = User.from_session_key(token)
+    if not user or user.user_id is None or not user.check_session(token):
+        return None
+    return user
+
+
+def _dm_room(a: int, b: int) -> str:
+    """Stable room name for a pair of users (undirected)."""
+    low, high = (a, b) if a < b else (b, a)
+    return f"dm:{low}:{high}"
+
+
+# ------------------------------------------------------------
+# HTTP pages
+# ------------------------------------------------------------
 @app.route("/")
 def index():
     user = _require_user()
     if user is None:
         return redirect(url_for("login"))
 
-    # Left column: friend list
-    friends = user.get_friends()  # list of (id, email)
-
+    friends = user.get_friends()
     return render_template(
         "index.html",
         user_email=user.email,
         session_timeout=SESSION_TIMEOUT,
         friends=friends,
         selected_friend=None,
+        current_user_id=user.user_id,
     )
 
 
 @app.route("/chat/<int:friend_id>")
 def chat(friend_id: int):
-    """
-    Opens the chat panel next to the friend list.
-    This does not send/receive messages yet; it only shows the UI with the selected friend.
-    """
     user = _require_user()
     if user is None:
         return redirect(url_for("login"))
-
-    # Security: only allow opening chat with actual friends
-    if not user.is_friend_with(friend_id):
+    if friend_id == user.user_id or not user.is_friend_with(friend_id):
         abort(404)
 
-    # Resolve friend's email for display
     with conn.cursor() as cur:
         cur.execute("SELECT id, email FROM public.users WHERE id=%s", (friend_id,))
         row = cur.fetchone()
@@ -286,15 +308,131 @@ def chat(friend_id: int):
         friend = {"id": row[0], "email": row[1]}
 
     friends = user.get_friends()
-
     return render_template(
         "index.html",
         user_email=user.email,
         session_timeout=SESSION_TIMEOUT,
         friends=friends,
         selected_friend=friend,
+        current_user_id=user.user_id,
     )
 
+
+# ------------------------------------------------------------
+# Socket.IO events (WebSocket)
+# ------------------------------------------------------------
+@socketio.on("connect")
+def ws_connect():
+    user = _current_user_ws()
+    print(f"[ws][connect] user={'NONE' if not user else user.user_id}", file=sys.stderr, flush=True)
+    if user is None:
+        return False  # reject
+
+
+@socketio.on("join")
+def ws_join(data):
+    """
+    Join a DM room and receive recent history.
+    data = { "friend_id": int }
+    """
+    user = _current_user_ws()
+    print(f"[ws][join] user={'NONE' if not user else user.user_id} data={data}", file=sys.stderr, flush=True)
+    if user is None:
+        return disconnect()
+
+    friend_id = int(data.get("friend_id", 0))
+    if friend_id == 0 or friend_id == user.user_id or not user.is_friend_with(friend_id):
+        print(f"[ws][join] reject: friend_id={friend_id}", file=sys.stderr, flush=True)
+        return  # ignore silently
+
+    room = _dm_room(user.user_id, friend_id)
+    join_room(room)
+    print(f"[ws][join] joined room {room}", file=sys.stderr, flush=True)
+
+    # Load last 50 messages for this conversation
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, sender_id, receiver_id, body, created_at
+            FROM public.messages
+            WHERE (sender_id=%s AND receiver_id=%s)
+               OR (sender_id=%s AND receiver_id=%s)
+            ORDER BY id DESC
+            LIMIT 50
+            """,
+            (user.user_id, friend_id, friend_id, user.user_id),
+        )
+        rows = cur.fetchall()[::-1]  # chronological
+
+    history = [
+        {
+            "id": mid,
+            "sender_id": sid,
+            "body": body,
+            "created_at": created_at.isoformat()
+        }
+        for (mid, sid, rid, body, created_at) in rows
+    ]
+    emit("history", {"messages": history})
+
+
+@socketio.on("send_message")
+def ws_send_message(data):
+    """
+    Send a message to the current friend; broadcast to room.
+    data = { "friend_id": int, "body": str }
+    """
+    user = _current_user_ws()
+    print(f"[ws][send] user={'NONE' if not user else user.user_id} data={data}", file=sys.stderr, flush=True)
+    if user is None:
+        return disconnect()
+
+    try:
+        friend_id = int(data.get("friend_id"))
+    except Exception:
+        print("[ws][send] bad friend_id", file=sys.stderr, flush=True)
+        return
+    body = (data.get("body") or "").strip()
+
+    if not body or len(body) > MAX_MESSAGE_LEN:
+        print("[ws][send] empty body", file=sys.stderr, flush=True)
+        return
+    if friend_id == user.user_id or not user.is_friend_with(friend_id):
+        print(f"[ws][send] not friends or self: friend_id={friend_id}", file=sys.stderr, flush=True)
+        return
+
+    # Persist to DB
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO public.messages (sender_id, receiver_id, body)
+            VALUES (%s, %s, %s)
+            RETURNING id, created_at
+            """,
+            (user.user_id, friend_id, body),
+        )
+        mid, created_at = cur.fetchone()
+    conn.commit()
+
+    print(f"[ws][send] saved mid={mid}", file=sys.stderr, flush=True)
+
+    room = _dm_room(user.user_id, friend_id)
+    join_room(room)
+
+    payload = {
+        "id": mid,
+        "body": body,
+        "created_at": created_at.isoformat(),
+        "sender_id": user.user_id,
+    }
+
+    emit("message", payload, room=room)
+    print(f"[ws][send] emitted to {room}", file=sys.stderr, flush=True)
+
+
+# ------------------------------------------------------------
+# Legacy HTTP API (optional) — can be kept or removed
+# ------------------------------------------------------------
 @app.route("/logout", methods=["GET"])
 def logout():
     r = redirect(url_for("login"))
@@ -356,10 +494,26 @@ def register():
 
     user.set_password(password)
     user.save()
-    flash("Zarejestrowano pomyślnie!", "success")
+    flash("Zarejestrowno pomyślnie!", "success")
     return redirect(url_for("login"))
 
 
 @app.route("/lib/<path:filename>", methods=["GET"])
 def lib(filename):
     return send_from_directory("lib", filename)
+
+
+# ------------------------------------------------------------
+# Entry point
+# ------------------------------------------------------------
+if __name__ == "__main__":
+    # Enable debug + code reloader inside Docker.
+    # NOTE: The reloader watches files in the container filesystem.
+    #       Mount your project directory as a volume to get "live" changes.
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=80,
+        debug=True,          # Flask debug (autoreload)
+        use_reloader=False    # Force reloader for SocketIO server
+    )

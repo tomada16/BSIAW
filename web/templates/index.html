@@ -4,15 +4,20 @@
     <title>Strona główna</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        /* Minimal layout helpers in case your CSS doesn't include them yet */
-        .layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; align-items: start; }
+        .layout { display: grid; grid-template-columns: 1fr 280px; gap: 16px; align-items: start; }
         .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; background: #fff; }
         .friends-table { width: 100%; border-collapse: collapse; }
         .friends-table th, .friends-table td { border: 1px solid #ccc; padding: 6px 8px; }
         .friends-table a { text-decoration: none; }
-        .chat-box { min-height: 320px; }
+        .chat-box { min-height: 360px; display: flex; flex-direction: column; }
         .chat-header { font-weight: bold; margin-bottom: 8px; }
         .muted { color: #777; }
+        .messages { flex: 1; overflow-y: auto; border: 1px solid #eee; padding: 8px; }
+        .msg { margin: 6px 0; }
+        .msg.me { text-align: right; }
+        .msg .bubble { display: inline-block; padding: 6px 10px; border-radius: 8px; border: 1px solid #eee; }
+        .composer { display: flex; gap: 8px; margin-top: 10px; }
+        .composer input[type="text"] { flex: 1; padding: 8px; }
     </style>
 </head>
 <body class="main-page">
@@ -34,19 +39,76 @@
         <br><br>
 
         <div class="layout">
-            <!-- Left: Chat pane -->
+            <!-- LEFT: Chat pane -->
             <div class="card chat-box">
                 {% if selected_friend %}
                     <div class="chat-header">Chat with {{ selected_friend.email }}</div>
-                    <div id="chat-messages" class="muted">
-                        <!-- No backend for messages yet; placeholder only -->
-                        No messages yet. (This panel opens when you click a friend.)
-                    </div>
+                    <div id="chat-messages" class="messages"></div>
+
+                    <form id="composer" class="composer">
+                        <input id="message-input" type="text" maxlength="2000" autocomplete="off" placeholder="Write a message..." />
+                        <button type="submit">Send</button>
+                    </form>
+
+                    <!-- Socket.IO client (served by Flask-SocketIO) -->
+                    <script src="{{ url_for('static', filename='socket.io.min.js') }}"></script>
+                    <script>
+                    (function() {
+                        const friendId = {{ selected_friend.id }};
+                        const myId = {{ current_user_id }};
+                        const messagesEl = document.getElementById('chat-messages');
+                        const form = document.getElementById('composer');
+                        const input = document.getElementById('message-input');
+
+                        const socket = io({ withCredentials: true, transports: ['websocket', 'polling'] });
+
+                        function appendMessage(body, fromMe) {
+                            const row = document.createElement('div');
+                            row.className = 'msg' + (fromMe ? ' me' : '');
+                            const bubble = document.createElement('span');
+                            bubble.className = 'bubble';
+                            bubble.textContent = body;
+                            row.appendChild(bubble);
+                            messagesEl.appendChild(row);
+                            messagesEl.scrollTop = messagesEl.scrollHeight;
+                        }
+
+                        socket.on('connect', () => {
+                            console.log('[ws] connected');
+                            socket.emit('join', { friend_id: friendId });
+                        });
+
+                        socket.on('history', (payload) => {
+                            console.log('[ws] history', payload);
+                            messagesEl.innerHTML = '';
+                            for (const m of (payload.messages || [])) {
+                                appendMessage(m.body, m.sender_id === myId);
+                            }
+                        });
+
+                        socket.on('message', (m) => {
+                            console.log('[ws] message', m);
+                            appendMessage(m.body, m.sender_id === myId);
+                        });
+
+                        form.addEventListener('submit', (ev) => {
+                            ev.preventDefault();
+                            const text = input.value.trim();
+                            if (!text) return;
+                            // Możesz zostawić optymistyczny append, ale na czas diagnozy — wyłącz:
+                            // appendMessage(text, true);
+                            socket.emit('send_message', { friend_id: friendId, body: text });
+                            input.value = '';
+                        });
+                    })();
+                    </script>
+
                 {% else %}
-                    <div class="muted">Select a friend on the left to open the chat here.</div>
+                    <div class="muted">Select a friend on the right to open the chat here.</div>
                 {% endif %}
             </div>
-            <!-- Right: Friends list -->
+
+            <!-- RIGHT: Friends list -->
             <div class="card">
                 <h3>Friends</h3>
                 {% if friends and friends|length > 0 %}
@@ -55,7 +117,6 @@
                     {% for fid, email in friends %}
                     <tr>
                         <td>
-                            <!-- Clicking a friend opens the chat on the right -->
                             <a href="{{ url_for('chat', friend_id=fid) }}">{{ email }}</a>
                         </td>
                     </tr>
