@@ -1,0 +1,25 @@
+FROM alpine
+
+RUN apk add --no-cache \
+    postgresql17 \
+    postgresql17-client
+
+RUN mkdir /run/postgresql && chown postgres:postgres /run/postgresql/
+
+COPY docker/db/setup.sh /
+COPY docker/db/database.sql /srv/
+COPY docker/db/pg_hba.conf /srv/
+COPY docker/db/postgresql.conf /srv/
+RUN chmod +x /setup.sh
+
+# Initialize PG cluster
+USER postgres
+RUN mkdir -p /var/lib/postgresql/data && \
+    chmod 700 /var/lib/postgresql/data && \
+    initdb -D /var/lib/postgresql/data
+
+RUN cp /srv/pg_hba.conf /var/lib/postgresql/data
+RUN cp /srv/postgresql.conf /var/lib/postgresql/data
+
+USER root
+ENTRYPOINT ["/setup.sh"]

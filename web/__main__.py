@@ -1,15 +1,11 @@
 # Main server controller
 # Copyright (c) 2025 Politechnika Wrocławska
 
-from . import userorm, db
+from . import userorm, db, settings
 import flask_socketio
 import flask
 import sys
 import os
-
-
-SESSION_TIMEOUT = 600
-MAX_MESSAGE_LEN = 2000
 
 app = flask.Flask(__name__)
 app.secret_key = os.getrandom(32).hex()
@@ -55,7 +51,7 @@ def index():
     return flask.render_template(
         "index.html",
         user_email=user.email,
-        session_timeout=SESSION_TIMEOUT,
+        session_timeout=settings.SESSION_TIMEOUT,
         friends=friends,
         selected_friend=None,
         current_user_id=user.user_id,
@@ -85,7 +81,7 @@ def chat(friend_id: int):
     return flask.render_template(
         "index.html",
         user_email=user.email,
-        session_timeout=SESSION_TIMEOUT,
+        session_timeout=settings.SESSION_TIMEOUT,
         friends=friends,
         selected_friend=friend,
         current_user_id=user.user_id,
@@ -190,7 +186,7 @@ def ws_send_message(data):
         return
     body = (data.get("body") or "").strip()
 
-    if not body or len(body) > MAX_MESSAGE_LEN:
+    if not body or len(body) > settings.MAX_MESSAGE_LEN:
         print("[ws][send] empty body", file=sys.stderr, flush=True)
         return
     if friend_id == user.user_id or not user.is_friend_with(friend_id):
@@ -259,8 +255,7 @@ def login():
         flask.flash("Zły e-mail lub hasło", "error")
         return flask.redirect(flask.url_for("login"))
 
-    user.create_session(SESSION_TIMEOUT)
-
+    user.create_session(settings.SESSION_TIMEOUT)
     flask.flash("Witaj {}".format(email), "success")
 
     r = flask.make_response(flask.redirect(flask.url_for("index")))

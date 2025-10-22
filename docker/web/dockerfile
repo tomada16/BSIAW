@@ -5,8 +5,6 @@ RUN apk add --no-cache \
     python3 \
     py3-pip \
     py3-flask \
-    postgresql17 \
-    postgresql17-client \
     py3-greenlet \
     gcc \
     musl-dev \
@@ -24,21 +22,11 @@ RUN pip3 install --no-cache-dir \
     eventlet \
     psycopg2-binary
 
-# Postgres runtime dirs/permissions
-RUN mkdir /run/postgresql && chown postgres:postgres /run/postgresql/
-
 # App & DB artifacts
-COPY docker/setup.sh /
-COPY docker/database.sql /srv/
+COPY docker/web/setup.sh /
 RUN chmod +x /setup.sh
 RUN mkdir -p /srv/web
 COPY web/ /srv/web
-
-# Initialize PG cluster
-USER postgres
-RUN mkdir -p /var/lib/postgresql/data && \
-    chmod 700 /var/lib/postgresql/data && \
-    initdb -D /var/lib/postgresql/data
 
 USER root
 ENTRYPOINT ["/setup.sh"]

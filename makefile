@@ -1,7 +1,5 @@
-bsiaw:
-	-docker container rm -f $@
-	docker build -t $@ .
-	docker run -d --rm --name $@ -p 7708:80 -v $(shell pwd)/web:/srv/web $@:latest
+# Run docker compose
+# Copyright (c) 2025 Politechnika Wrocławska
 
-connect:
-	docker exec -it bsiaw sh
+all:
+	cd docker && docker compose down --rmi all -v; docker compose up
