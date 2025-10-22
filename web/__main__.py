@@ -2,6 +2,7 @@
 # Copyright (c) 2025 Politechnika Wrocławska
 
 from . import userorm, db, settings
+import werkzeug.exceptions
 import flask_socketio
 import flask
 import sys
@@ -36,6 +37,13 @@ def _dm_room(a: int, b: int) -> str:
     """Stable room name for a pair of users (undirected)."""
     low, high = (a, b) if a < b else (b, a)
     return f"dm:{low}:{high}"
+
+
+@app.errorhandler(Exception)
+def error_handler(e):
+    if isinstance(e, werkzeug.exceptions.HTTPException):
+        return e
+    return flask.render_template("bad_request.html")
 
 
 # ------------------------------------------------------------
@@ -91,6 +99,8 @@ def chat(friend_id: int):
 # ------------------------------------------------------------
 # Socket.IO events (WebSocket)
 # ------------------------------------------------------------
+
+
 @socketio.on("connect")
 def ws_connect():
     user = _require_user()
@@ -99,8 +109,8 @@ def ws_connect():
         file=sys.stderr,
         flush=True,
     )
-    if user is None:
-        return False  # reject
+
+    return user is not None  # reject if user does not exist with token
 
 
 @socketio.on("join")
@@ -228,7 +238,7 @@ def ws_send_message(data):
 
 
 # ------------------------------------------------------------
-# Legacy HTTP API (optional) — can be kept or removed
+# Login/logout
 # ------------------------------------------------------------
 @app.route("/logout", methods=["GET"])
 def logout():

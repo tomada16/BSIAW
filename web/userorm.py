@@ -3,7 +3,6 @@
 
 from typing import Optional, Self, List, Tuple
 from . import db
-import psycopg2
 import datetime
 import hashlib
 import time
