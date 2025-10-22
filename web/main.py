@@ -17,7 +17,7 @@ import psycopg2
 import time
 import os
 
-SESSION_TIMEOUT = 30
+SESSION_TIMEOUT = 120
 
 app = Flask(__name__)
 # Temporary will be changed when sesions are done | "secret" will be later deleted
@@ -169,7 +169,7 @@ class User:
             return False
         return time.time() <= s.timeout
 
-    def create_session(self, timeout_sec) -> str:
+    def create_session(self, timeout_sec):
         """Create a session for the user."""
         with conn.cursor() as cur:
             if self.__get_session():
@@ -186,6 +186,59 @@ class User:
 
         conn.commit()
 
+        # ------------------------------------------------------------
+        # Friends helpers
+        # ------------------------------------------------------------
+        def get_friend_emails(self):
+            """
+            Returns a list of friend emails for this user.
+            Works directly on the friendships table (does not require the view).
+            """
+            if self.user_id is None:
+                return []
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT u.email
+                    FROM public.friendships f
+                    JOIN public.users u
+                      ON u.id = CASE
+                                   WHEN f.user_id_low = %s THEN f.user_id_high
+                                   ELSE f.user_id_low
+                                END
+                    WHERE %s IN (f.user_id_low, f.user_id_high)
+                    ORDER BY u.email
+                    """,
+                    (self.user_id, self.user_id),
+                )
+                rows = cur.fetchall()
+                return [r[0] for r in rows]
+
+    # ------------------------------------------------------------
+    # Friends helpers
+    # ------------------------------------------------------------
+    def get_friend_emails(self):
+        """
+        Returns a list of friend emails for this user.
+        Works directly on the friendships table (does not require the view).
+        """
+        if self.user_id is None:
+            return []
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT u.email
+                FROM public.friendships f
+                JOIN public.users u
+                  ON u.id = CASE
+                               WHEN f.user_id_low = %s THEN f.user_id_high
+                               ELSE f.user_id_low
+                            END
+                WHERE %s IN (f.user_id_low, f.user_id_high)
+                ORDER BY u.email""",
+                (self.user_id, self.user_id),
+            )
+            rows = cur.fetchall()
+            return [r[0] for r in rows]
 
 @app.route("/")
 def index():
@@ -197,9 +250,10 @@ def index():
     if not user or user.user_id is None or not user.check_session(token):
         return redirect(url_for("login"))
 
-    usernames = []
-    if user.email == "admin@student.pwr.edu.pl":
-        usernames = User.get_all_emails()
+    # Show friends of the logged-in user on index.html.
+    # Template expects `usernames` -> pass friend emails there.
+    usernames = user.get_friend_emails()
+
     return render_template(
         "index.html",
         user_email=user.email,
