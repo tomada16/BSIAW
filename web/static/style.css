@@ -35,8 +35,125 @@ body {
     margin-top: 0%;
     border-radius: 15px;
     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    width: 500px;
+    width: 70%;
     text-align: justify;
+}
+
+.chat-container{
+    display: grid;
+    grid-template-columns: 1fr 32%;
+    gap: 16px;
+    align-items: start;
+}
+
+.card{
+    border: 2px solid #222831;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    border-radius: 8px;
+    padding: 12px;
+    background: #948979;
+}
+
+.chat-box{
+    min-height: 360px;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-header{
+    font-weight: bold;
+    margin-bottom: 8px;
+    padding: 5px;
+    text-align: center;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+    border-radius: 15px;
+    border: 2px solid #222831;
+    background-color: #DFD0B8;
+}
+
+.messages{
+    flex: 1;
+    overflow-y: auto;
+    border-radius: 15px;
+    padding: 8px;
+    background-color: #B9AA8F;
+    border: 2px solid #222831;
+}
+
+.msg{
+    margin: 6px 0;
+    text-wrap: auto;
+}
+
+.msg.me{
+    text-align: right;
+}
+.msg .bubble{
+    display: inline-block;
+    max-width: 75%;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background-color: #DFD0B8;
+    border: 2px solid #222831;
+}
+
+.muted{
+    color: #393E46;
+}
+
+.composer{
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.composer input[type="text"]{
+    flex: 1;
+    padding: 8px;
+    border-radius: 10px;
+    background-color: #DFD0B8;
+    border: 2px solid #222831;
+}
+
+.composer button{
+    border-radius: 10px;
+    background-color: #DFD0B8;
+    border: 2px solid #222831;
+    width: 80px;
+}
+
+.friends-header{
+    font-weight: bold;
+    margin-bottom: 8px;
+    padding: 5px;
+    text-align: center;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+    border-radius: 15px;
+    border: 2px solid #222831;
+    background-color: #DFD0B8;
+}
+
+.friends-table{
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.friends-table th, .friends-table td{
+    border: 2px solid #222831;
+    padding: 6px 8px;
+    background-color: #DFD0B8;
+}
+
+.friends-table a{
+    text-decoration: none;
+    color: black;
+}
+
+.friends-table a:hover{
+    color: green;
 }
 
 .login-container h2,
