@@ -291,7 +291,11 @@ def login():
 
     r = flask.make_response(flask.redirect(flask.url_for("index")))
     r.set_cookie(
-        "token", user.get_session_key(), httponly=True, samesite="Strict"
+        "token",
+        user.get_session_key(),
+        httponly=True,
+        samesite="Strict",
+        secure=True,
     )
     return r
 
