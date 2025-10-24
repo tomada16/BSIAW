@@ -207,6 +207,10 @@ def ws_send_message(data):
         )
         return
 
+    # The user sent a valid message, so we can update the session timer
+    # so it doesn't log him out so quickly.
+    user.bump_session_timer(settings.SESSION_TIMEOUT)
+
     # Persist to DB
     with db.create_connection() as conn:
         with conn.cursor() as cur:

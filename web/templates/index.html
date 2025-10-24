@@ -37,6 +37,21 @@
                     <!-- Socket.IO client (served by Flask-SocketIO) -->
                     <script src="{{ url_for('static', filename='socket.io.min.js') }}"></script>
                     <script>
+
+                    const updateMessageTimers = () => {
+                        document.querySelectorAll('.msg-timestamp').forEach((t) => {
+                            const d = Date.parse(t.getAttribute('timestamp'));
+                            const seconds = Math.floor((Date.now() - d) / 1000);
+                            if (seconds < 60) {
+                                t.textContent = `${seconds}s ago`;
+                            } else if (seconds <= 60 * 30) {
+                                t.textContent = `${Math.floor(seconds / 60)} min ago`
+                            } else {
+                                t.textContent = new Date(d).toLocaleTimeString();
+                            }
+                        });
+                    }
+
                     (function() {
                         const friendId = {{ selected_friend.id }};
                         const myId = {{ current_user_id }};
@@ -46,12 +61,27 @@
 
                         const socket = io({ withCredentials: true, transports: ['websocket', 'polling'] });
 
-                        function appendMessage(body, fromMe) {
+                        function appendMessage(body, fromMe, timestamp) {
                             const row = document.createElement('div');
                             row.className = 'msg' + (fromMe ? ' me' : '');
+
                             const bubble = document.createElement('span');
                             bubble.className = 'bubble';
-                            bubble.textContent = body;
+                            bubble.innerHTML = `
+                                <span class="msg-body"></span><br>
+                                <span class="msg-timestamp"></span>
+                            `;
+
+                            const messageContent = bubble.querySelector('.msg-body');
+                            messageContent.textContent = body;
+
+                            const messageTimestamp = bubble.querySelector('.msg-timestamp');
+                            /* Let's get cheeky here: we can add a 'Z' to the ISO timestamp, indicating
+                               it's a UTC timestamp so second offsets are real. :) */
+                            messageTimestamp.setAttribute('timestamp', timestamp + 'Z');
+                            messageTimestamp.textContent = (new Date(timestamp)).toLocaleTimeString();
+
+                            /* Never use innerHTML! */
                             row.appendChild(bubble);
                             messagesEl.appendChild(row);
                             messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -66,13 +96,13 @@
                             console.log('[ws] history', payload);
                             messagesEl.innerHTML = '';
                             for (const m of (payload.messages || [])) {
-                                appendMessage(m.body, m.sender_id === myId);
+                                appendMessage(m.body, m.sender_id === myId, m.created_at);
                             }
                         });
 
                         socket.on('message', (m) => {
                             console.log('[ws] message', m);
-                            appendMessage(m.body, m.sender_id === myId);
+                            appendMessage(m.body, m.sender_id === myId, m.created_at);
                         });
 
                         form.addEventListener('submit', (ev) => {
@@ -83,6 +113,8 @@
                             input.value = '';
                         });
                     })();
+
+                    setInterval(updateMessageTimers, 1000);
                     </script>
 
                 {% else %}

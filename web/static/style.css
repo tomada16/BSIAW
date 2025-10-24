@@ -91,13 +91,19 @@ body {
 .msg .bubble{
     display: inline-block;
     max-width: 75%;
-    white-space: pre-wrap;
     overflow-wrap: anywhere;
     word-break: break-word;
     padding: 6px 10px;
     border-radius: 8px;
     background-color: #DFD0B8;
     border: 2px solid #222831;
+}
+
+.msg .msg-timestamp {
+    display: inline-block;
+    color: grey;
+    font-size: 0.8rem;
+    margin-top: 4px;
 }
 
 .muted{

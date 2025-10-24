@@ -163,6 +163,20 @@ class User:
 
         self.conn.commit()
 
+    def bump_session_timer(self, timeout_sec) -> bool:
+        """Bump the session timer until timeout_sec is reached from now."""
+        with self.conn.cursor() as cur:
+            if not self.__get_session():
+                return False
+
+            t = datetime.datetime.fromtimestamp(int(time.time()) + timeout_sec)
+            cur.execute(
+                "UPDATE sessions SET valid_until = %s WHERE user_id = %s",
+                (t, self.user_id),
+            )
+
+        self.conn.commit()
+
     # ------------------------------------------------------------
     # Friends helpers
     # ------------------------------------------------------------
