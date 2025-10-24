@@ -174,6 +174,23 @@ def ws_join(data):
     flask_socketio.emit("history", {"messages": history})
 
 
+@socketio.on("type_message")
+def ws_type_message(data):
+    user = _require_user()
+    if user is None:
+        return flask_socketio.disconnect()
+
+    try:
+        friend_id = int(data.get("friend_id"))
+    except Exception:
+        print("[ws][send] bad friend_id", file=sys.stderr, flush=True)
+        return
+
+    room = _dm_room(user.user_id, friend_id)
+    flask_socketio.join_room(room)
+    flask_socketio.emit("type_message", {"sender_id": user.user_id}, room=room)
+
+
 @socketio.on("send_message")
 def ws_send_message(data):
     """
@@ -322,8 +339,9 @@ if __name__ == "__main__":
     #       Mount your project directory as a volume to get "live" changes.
     socketio.run(
         app,
-        host="0.0.0.0",
-        port=80,
+        host="127.0.0.1",
+        port=8080,
         debug=True,  # Flask debug (autoreload)
         use_reloader=True,  # Force reloader for SocketIO server
+        allow_unsafe_werkzeug=True,
     )

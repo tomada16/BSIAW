@@ -7,7 +7,7 @@ services:
       netlink: {}
       dblink: {}
     ports:
-      - "7708:80"
+      - "7708:443"
     volumes:
       - ../web:/srv/web
 

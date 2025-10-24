@@ -27,7 +27,8 @@
             <div class="card chat-box">
                 {% if selected_friend %}
                     <div class="chat-header">Chat with {{ selected_friend.email }}</div>
-                    <div id="chat-messages" class="messages"></div>
+                    <div id="chat-messages" class="messages">
+                    </div>
 
                     <form id="composer" class="composer">
                         <input id="message-input" type="text" maxlength="2000" autocomplete="off" placeholder="Napisz wiadomość..." />
@@ -73,6 +74,7 @@
                             `;
 
                             const messageContent = bubble.querySelector('.msg-body');
+                            /* Never use innerHTML for this! */
                             messageContent.textContent = body;
 
                             const messageTimestamp = bubble.querySelector('.msg-timestamp');
@@ -81,9 +83,8 @@
                             messageTimestamp.setAttribute('timestamp', timestamp + 'Z');
                             messageTimestamp.textContent = (new Date(timestamp)).toLocaleTimeString();
 
-                            /* Never use innerHTML! */
                             row.appendChild(bubble);
-                            messagesEl.appendChild(row);
+                            messagesEl.insertBefore(row, messagesEl.lastElementChild);
                             messagesEl.scrollTop = messagesEl.scrollHeight;
                         }
 
@@ -94,7 +95,9 @@
 
                         socket.on('history', (payload) => {
                             console.log('[ws] history', payload);
-                            messagesEl.innerHTML = '';
+                            messagesEl.innerHTML = `
+                                <div class="msg-typing" style="display: none">{{ selected_friend.email }} is typing</div>
+                            `;
                             for (const m of (payload.messages || [])) {
                                 appendMessage(m.body, m.sender_id === myId, m.created_at);
                             }
@@ -102,13 +105,72 @@
 
                         socket.on('message', (m) => {
                             console.log('[ws] message', m);
+                            const msgTyping = document.querySelector('.msg-typing');
+                            msgTyping.style.display = 'none';
+                            messagesEl.scrollTop = messagesEl.scrollHeight;
                             appendMessage(m.body, m.sender_id === myId, m.created_at);
+                        });
+
+                        let hideMessageTimeout = null;
+
+                        socket.on('type_message', (m) => {
+                            if (m.sender_id == myId) {
+                                /* Don't do anything if we are the one typing the message. */
+                                return;
+                            }
+
+                            const msgTyping = document.querySelector('.msg-typing');
+
+                            messagesEl.scrollTop = messagesEl.scrollHeight;
+                            msgTyping.style.display = 'block';
+
+                            if (hideMessageTimeout !== null) {
+                                clearTimeout(hideMessageTimeout);
+                            }
+
+                            hideMessageTimeout = setTimeout(() => {
+                                msgTyping.style.display = 'none';
+                                messagesEl.scrollTop = messagesEl.scrollHeight;
+                            }, 5000);
+                        });
+
+                        input.addEventListener('input', (e) => {
+                            socket.emit('type_message', { friend_id: friendId });
                         });
 
                         form.addEventListener('submit', (ev) => {
                             ev.preventDefault();
-                            const text = input.value.trim();
+                            let text = input.value.trim();
                             if (!text) return;
+
+                            const emojiTable = {
+                                fire: '🔥',
+                                heart: '❤️',
+                                smile: '😄',
+                                thumbs_up: '👍',
+                                star: '⭐',
+                                poop: '💩',
+                                clap: '👏',
+                                thinking: '🤔',
+                                cry: '😢',
+                                wink: '😉',
+                                party: '🥳',
+                                ok: '👌',
+                                ok_hand: '👌',
+                                laughing: '😂',
+                                cool: '😎',
+                                eyes: '👀',
+                                hug: '🤗',
+                                money: '💰',
+                                coffee: '☕',
+                                skull: '💀',
+                                speaking: '🗣️'
+                            };
+
+                            Object.keys(emojiTable).forEach((name) => {
+                                text = text.replaceAll(`:${name}:`, emojiTable[name]);
+                            });
+
                             socket.emit('send_message', { friend_id: friendId, body: text });
                             input.value = '';
                         });

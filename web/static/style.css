@@ -71,13 +71,14 @@ body {
     background-color: #DFD0B8;
 }
 
-.messages{
+.messages {
     flex: 1;
     overflow-y: auto;
     border-radius: 15px;
     padding: 8px;
     background-color: #B9AA8F;
     border: 2px solid #222831;
+    max-height: 50vh;
 }
 
 .msg{
@@ -104,6 +105,19 @@ body {
     color: grey;
     font-size: 0.8rem;
     margin-top: 4px;
+}
+
+.msg-typing::after {
+  content: '';
+  animation: dots 1.0s steps(4, end) infinite;
+}
+
+@keyframes dots {
+  0%   { content: ''; }
+  25%  { content: '.'; }
+  50%  { content: '..'; }
+  75%  { content: '...'; }
+  100% { content: ''; }
 }
 
 .muted{

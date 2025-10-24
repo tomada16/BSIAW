@@ -6,9 +6,8 @@ RUN apk add --no-cache \
     py3-pip \
     py3-flask \
     py3-greenlet \
-    gcc \
-    musl-dev \
-    python3-dev
+    nginx \
+    openssl
 
 # Virtualenv for Python packages we need via pip
 RUN python3 -m venv /opt/venv
@@ -19,11 +18,11 @@ ENV PATH="/opt/venv/bin:${PATH}"
 RUN pip3 install --no-cache-dir \
     flask-socketio \
     python-socketio \
-    eventlet \
     psycopg2-binary
 
-# App & DB artifacts
 COPY docker/web/setup.sh /
+COPY docker/web/nginx.conf /etc/nginx
+
 RUN chmod +x /setup.sh
 RUN mkdir -p /srv/web
 COPY web/ /srv/web
