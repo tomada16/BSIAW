@@ -49,6 +49,13 @@ def error_handler(e):
 # ------------------------------------------------------------
 # HTTP pages
 # ------------------------------------------------------------
+
+
+@app.route("/healthcheck")
+def health_check():
+    return {"ok": True}
+
+
 @app.route("/")
 def index():
     user = _require_user()
