@@ -20,6 +20,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Build & tag the docker image
+        id: step-build
+        run: |
+          docker build -t tomada16/bsiaw .
+          docker tag "tomada16/bsiaw:latest" "${{ env.ECR_URL }}/${{ env.ECR_REPO }}:latest"
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.0.0
+
+      - name: Check cosign installation
+        run: cosign version
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -30,14 +42,17 @@ jobs:
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build & tag the docker image
-        run: |
-          docker build -t tomada16/bsiaw .
-          docker tag "tomada16/bsiaw:latest" "${{ env.ECR_URL }}/${{ env.ECR_REPO }}:latest"
-
       - name: Push to ECR
         run: |
           docker push "${{ env.ECR_URL }}/${{ env.ECR_REPO }}:latest"
+
+      - name: Sign docker image
+        env:
+          COSIGN_PASSWORD: ""
+        run: |
+          echo "${{ secrets.BSIAW_SIGNING_KEY }}" | base64 -d > /tmp/bsiaw.key
+          cosign sign --key /tmp/bsiaw.key "${{ env.ECR_URL }}/${{ env.ECR_REPO }}:latest"
+          rm -f /tmp/bsiaw.key
 
       - name: Redeploy ECS containers
         run: |
