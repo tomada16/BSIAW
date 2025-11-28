@@ -10,6 +10,8 @@ on:
 
 env:
   AWS_REGION: eu-north-1
+  ECR_URL: 139073842005.dkr.ecr.eu-north-1.amazonaws.com
+  ECR_REPO: tomada16/bsiaw
 
 jobs:
   build-and-push:
@@ -26,9 +28,13 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push the container image
+      - name: Build & tag the docker image
         run: |
-          make aws
+          docker build -t tomada16/bsiaw .
+          docker tag "tomada16/bsiaw:latest" "${{ env.ECR_URL }}/${{ env.ECR_REPO }}:latest"
+
+      - name: Push to ECR
+        run: |
+          docker push "${{ env.ECR_URL }}/${{ env.ECR_REPO }}:latest"
