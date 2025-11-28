@@ -54,7 +54,7 @@ jobs:
           cosign sign --key /tmp/bsiaw.key "${{ env.ECR_URL }}/${{ env.ECR_REPO }}:latest"
           rm -f /tmp/bsiaw.key
 
-      - name: Redeploy ECS containers
+      - name: Redeploy ECS containers testing testing
         run: |
           aws ecs update-service --cluster bsiaw --service bsiaw-webserver-service-fldtkco7 \
             --force-new-deployment
