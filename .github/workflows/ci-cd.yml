@@ -38,3 +38,8 @@ jobs:
       - name: Push to ECR
         run: |
           docker push "${{ env.ECR_URL }}/${{ env.ECR_REPO }}:latest"
+
+      - name: Redeploy ECS containers
+        run: |
+          aws ecs update-service --cluster bsiaw --service bsiaw-webserver-service-fldtkco7 \
+            --force-new-deployment
