@@ -31,7 +31,7 @@ jobs:
         continue-on-error: true
         with:
           target: 'https://localhost:7708'
-          cmd_options: '-a -I -j -n zap.context -U 123'
+          cmd_options: '-a -I -j -n zap.context -U 1'
           allow_issue_writing: false
           fail_action: false
 
