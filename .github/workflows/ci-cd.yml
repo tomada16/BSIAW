@@ -21,21 +21,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4 
-
-      - name: Manual Trivy Setup
-        uses: aquasecurity/setup-trivy@v0.2.4
-        with:
-          cache: true
-          version: v0.65.0
       
       - name: Run Trivy vulnerability scanner in repo mode
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
+          scan-ref: '.'
           ignore-unfixed: true
           format: 'table'
           severity: 'CRITICAL,HIGH'
-          skip-setup-trivy: true
 
   build-and-push:
     name: Build + Push Docker Image
