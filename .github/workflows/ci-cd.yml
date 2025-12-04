@@ -41,8 +41,8 @@ jobs:
       - name: Upload Scan Results
         uses: actions/upload-artifact@v4
         with:
-          name: trivy-report
-          path: trivy-report.sarif
+          name: trivy-results
+          path: trivy-results.sarif
           retention-days: 10
 
   build-and-push:
