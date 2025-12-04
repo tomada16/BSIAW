@@ -2,7 +2,7 @@
 <configuration>
     <context>
         <name>BSIAW-Context</name>
-        <desc>Kontekst logowania Alice (symulacja hasha JS)</desc>
+        <desc>Login Context</desc>
         <inscope>true</inscope>
         <incregexes>https://localhost:7708.*</incregexes>
         <tech>
@@ -22,9 +22,9 @@
             <pollpostData>email={%username%}&amp;password={%password%}</pollpostData>
         </authentication>
         <users>
-            <user>123;true;QWxpY2U=;2;YWxpY2VAZXhhbXBsZS5jb20=~M2I2NGRiOTVjYjU1Yzc2MzM5MWM3MDcxMDg0ODlhZTE4YjQxMTJkNzgzMzAwZGUzOGUwMzNiNGM5OGMzZGVhZg==~</user>
+            <user>1;true;QWxpY2U=;2;YWxpY2VAZXhhbXBsZS5jb20=~M2I2NGRiOTVjYjU1Yzc2MzM5MWM3MDcxMDg0ODlhZTE4YjQxMTJkNzgzMzAwZGUzOGUwMzNiNGM5OGMzZGVhZg==~</user>
         </users>
-        <forceduser>123</forceduser>
+        <forceduser>1</forceduser>
         <session>
             <type>0</type>
         </session>
