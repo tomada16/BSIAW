@@ -30,12 +30,23 @@ jobs:
           format: 'table'
           severity: 'CRITICAL'
           exit-code: '1'
+          ignore-unfixed: false
 
       - name: Build & tag the docker image
         id: step-build
         run: |
           docker build -t tomada16/bsiaw .
           docker tag "tomada16/bsiaw:latest" "${{ env.ECR_URL }}/${{ env.ECR_REPO }}:latest"
+
+      - name: Run Trivy image scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'image'
+          image-ref: '${{ env.ECR_URL }}/${{ env.ECR_REPO }}:latest'
+          format: 'table'
+          severity: 'CRITICAL'
+          exit-code: '1'
+          ignore-unfixed: false
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@v4.0.0
