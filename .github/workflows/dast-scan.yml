@@ -19,7 +19,7 @@ jobs:
           echo "waiting for services to start..."
           sleep 60
 
-      # run owasp zap full scan
+      # run zap full scan
       # target localhost port 7708
       # ignore self-signed cert errors
       # do not fail build on findings
