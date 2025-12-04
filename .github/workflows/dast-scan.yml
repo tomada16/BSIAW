@@ -12,14 +12,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # --- DIAGNOSTYKA (Sprawdzamy czy plik jest widoczny) ---
+      # verify context file presence
       - name: DEBUG - Check Context File
         run: |
           echo "=== LISTING ==="
           ls -la
           echo "=== CONTENT OF zap.context ==="
           cat zap.context || echo "FILE MISSING!"
-      # -------------------------------------------------------
 
       # start docker containers from makefile logic
       - name: Start Environment
@@ -30,10 +29,10 @@ jobs:
 
       # run owasp zap full scan
       # target localhost port 7708
+      # enable ajax spider for js handling
+      # load authentication context and user alice
       # ignore self-signed cert errors
-      # -j: enable ajax spider (needed for js/websockets)
-      # -n: load authentication context (absolute path inside docker)
-      # -U: use user named "Alice" (decoded from base64 in xml)
+      # do not fail build on findings
       - name: ZAP Scan
         uses: zaproxy/action-full-scan@v0.10.0
         continue-on-error: true
