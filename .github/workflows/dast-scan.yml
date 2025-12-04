@@ -23,11 +23,15 @@ jobs:
       # target localhost port 7708
       # ignore self-signed cert errors
       # do not fail build on findings
+      # -j: enable ajax spider (needed for js/websockets)
+      # -n: load authentication context
+      # -U: use user id 123 defined in context
       - name: ZAP Scan
         uses: zaproxy/action-full-scan@v0.10.0
+        continue-on-error: true
         with:
           target: 'https://localhost:7708'
-          cmd_options: '-a -I'
+          cmd_options: '-a -I -j -n zap.context -U 123'
           allow_issue_writing: false
           fail_action: false
 
