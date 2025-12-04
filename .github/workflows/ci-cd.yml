@@ -38,6 +38,13 @@ jobs:
           severity: 'CRITICAL,HIGH'
           skip-setup-trivy: true
 
+      - name: Upload Scan Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.sarif
+          retention-days: 10
+
   build-and-push:
     name: Build + Push Docker Image
     runs-on: ubuntu-latest
