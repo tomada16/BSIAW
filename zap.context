@@ -1,43 +1,41 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<configuration>
-    <context>
-        <name>BSIAW-Context</name>
-        <desc>Login Context</desc>
-        <inscope>true</inscope>
-        <incregexes>https://localhost:7708.*</incregexes>
-        <tech>
-            <include>Db.PostgreSQL</include>
-            <include>Language.Python</include>
-            <include>OS.Linux</include>
-            <include>WS.Tomcat</include>
-        </tech>
-        <urlparser>
-            <class>org.zaproxy.zap.model.StandardParameterParser</class>
-            <config>{"kvps":"&amp;","kvs":"=","struct":[]}</config>
-        </urlparser>
-        <authentication>
-            <type>2</type>
-            <strategy>EACH_RESP</strategy>
-            <pollurl>https://localhost:7708/login</pollurl>
-            <pollpostData>email={%username%}&amp;password={%password%}</pollpostData>
-        </authentication>
-        <users>
-            <user>1;true;QWxpY2U=;2;YWxpY2VAZXhhbXBsZS5jb20=~M2I2NGRiOTVjYjU1Yzc2MzM5MWM3MDcxMDg0ODlhZTE4YjQxMTJkNzgzMzAwZGUzOGUwMzNiNGM5OGMzZGVhZg==~</user>
-        </users>
-        <forceduser>1</forceduser>
-        <session>
-            <type>0</type>
-        </session>
-        <authorization>
-            <type>0</type>
-            <basic>
-                <header/>
-                <body/>
-                <logic>AND</logic>
-                <code>-1</code>
-            </basic>
-        </authorization>
-        <loggedin>\QWitaj\E</loggedin>
-        <excregexes>https://localhost:7708/logout</excregexes>
-    </context>
-</configuration>
+<context>
+    <name>BSIAW-Context</name>
+    <desc>Login Context</desc>
+    <inscope>true</inscope>
+    <incregexes>https://localhost:7708.*</incregexes>
+    <tech>
+        <include>Db.PostgreSQL</include>
+        <include>Language.Python</include>
+        <include>OS.Linux</include>
+        <include>WS.Tomcat</include>
+    </tech>
+    <urlparser>
+        <class>org.zaproxy.zap.model.StandardParameterParser</class>
+        <config>{"kvps":"&amp;","kvs":"=","struct":[]}</config>
+    </urlparser>
+    <authentication>
+        <type>2</type>
+        <strategy>EACH_RESP</strategy>
+        <pollurl>https://localhost:7708/login</pollurl>
+        <pollpostData>email={%username%}&amp;password={%password%}</pollpostData>
+    </authentication>
+    <users>
+        <user>1;true;QWxpY2U=;2;YWxpY2VAZXhhbXBsZS5jb20=~M2I2NGRiOTVjYjU1Yzc2MzM5MWM3MDcxMDg0ODlhZTE4YjQxMTJkNzgzMzAwZGUzOGUwMzNiNGM5OGMzZGVhZg==~</user>
+    </users>
+    <forceduser>1</forceduser>
+    <session>
+        <type>0</type>
+    </session>
+    <authorization>
+        <type>0</type>
+        <basic>
+            <header/>
+            <body/>
+            <logic>AND</logic>
+            <code>-1</code>
+        </basic>
+    </authorization>
+    <loggedin>\QWitaj\E</loggedin>
+    <excregexes>https://localhost:7708/logout</excregexes>
+</context>
