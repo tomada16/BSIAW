@@ -1,0 +1,32 @@
+name: DAST Scan
+
+on: [push, workflow_dispatch]
+
+jobs:
+  security_scan:
+    runs-on: ubuntu-latest
+    name: OWASP ZAP Scan
+
+    steps:
+      # checkout code
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # start docker containers from makefile logic
+      - name: Start Environment
+        run: |
+          docker compose -f docker/compose.yaml up -d --build
+          echo "waiting for services to start..."
+          sleep 60
+
+      # run owasp zap full scan
+      # target localhost port 7708
+      # ignore self-signed cert errors
+      # do not fail build on findings
+      - name: ZAP Scan
+        uses: zaproxy/action-full-scan@v0.10.0
+        with:
+          target: 'https://localhost:7708'
+          cmd_options: '-a -I'
+          allow_issue_writing: false
+          fail_action: false
