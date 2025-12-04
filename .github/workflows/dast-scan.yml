@@ -8,35 +8,35 @@ jobs:
     name: OWASP ZAP Scan
 
     steps:
-      # checkout code
       - name: Checkout
         uses: actions/checkout@v4
 
-      # start docker containers from makefile logic
+      # --- DIAGNOSTYKA (To nam powie prawdę) ---
+      - name: DEBUG - Check Context File
+        run: |
+          echo "=== LISTING ==="
+          ls -la
+          echo "=== CONTENT OF zap.context ==="
+          cat zap.context || echo "FILE MISSING!"
+      # -----------------------------------------
+
       - name: Start Environment
         run: |
           docker compose -f docker/compose.yaml up -d --build
           echo "waiting for services to start..."
           sleep 60
 
-      # run zap full scan
-      # target localhost port 7708
-      # ignore self-signed cert errors
-      # do not fail build on findings
-      # -j: enable ajax spider (needed for js/websockets)
-      # -n: load authentication context
-      # -U: use user id 123 defined in context
       - name: ZAP Scan
         uses: zaproxy/action-full-scan@v0.10.0
         continue-on-error: true
         with:
           target: 'https://localhost:7708'
-          cmd_options: '-a -I -j -n zap.context -U 1'
+          # ZMIANA: Dodano pełną ścieżkę /zap/wrk/ przed nazwą pliku
+          # Docker montuje Twój kod w /zap/wrk/, więc to jest pewny adres.
+          cmd_options: '-a -I -j -n /zap/wrk/zap.context -U 1'
           allow_issue_writing: false
           fail_action: false
 
-      # upload reports manually to fix 400 bad request error
-      # overwrite existing artifacts if needed
       - name: Upload ZAP Reports
         if: always()
         uses: actions/upload-artifact@v4
