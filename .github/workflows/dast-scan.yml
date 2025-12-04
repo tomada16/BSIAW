@@ -30,3 +30,16 @@ jobs:
           cmd_options: '-a -I'
           allow_issue_writing: false
           fail_action: false
+
+      # upload reports manually to fix 400 bad request error
+      # overwrite existing artifacts if needed
+      - name: Upload ZAP Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap_scan_reports
+          path: |
+            report_json.json
+            report_md.md
+            report_html.html
+          overwrite: true
