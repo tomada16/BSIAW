@@ -15,7 +15,7 @@ env:
 
 jobs:
   build-and-push:
-    name: Build + Push Docker Image
+    name: Build + Push Docker Imagee
     runs-on: ubuntu-latest
 
     steps:
