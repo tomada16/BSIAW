@@ -10,6 +10,8 @@ services:
       - "7708:80"
     volumes:
       - ../web:/srv/web
+    environment:
+      DB_CREDENTIALS: "{\"username\":\"postgres\",\"password\":\"postgres\"}"
 
   db:
     build:

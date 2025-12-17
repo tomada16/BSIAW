@@ -1,10 +1,14 @@
 # Main server controller
 # Copyright (c) 2025 Politechnika Wrocławska
 
-from . import userorm, db, settings
+from . import userorm, db, settings, sanitize
 import werkzeug.exceptions
+import logging
 import flask_socketio
+import subprocess
+import threading
 import flask
+import time
 import sys
 import os
 
@@ -17,6 +21,34 @@ socketio = flask_socketio.SocketIO(
     logger=False,
     engineio_logger=False,
 )
+
+logger = logging.getLogger("bsiaw")
+handler = logging.FileHandler("/var/log/bsiaw")
+handler.setFormatter(
+    logging.Formatter(
+        fmt="[%(asctime)s] %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S",
+    )
+)
+
+logger.setLevel(logging.INFO)
+logger.addHandler(handler)
+
+
+def log_sync_task():
+    def thread_func():
+        try:
+            subprocess.run(
+                ["aws", "s3", "mv", "/var/log/bsiaw", "s3://bsiaw-app-logs"],
+                check=True,
+            )
+        except subprocess.CalledProcessError:
+            print("Failed to push logs to s3")
+            logger.error("failed to push logs to s3")
+
+        time.sleep(5)
+
+    threading.Thread(target=thread_func, daemon=True)
 
 
 # ------------------------------------------------------------
@@ -281,20 +313,23 @@ def login():
     if flask.request.method == "GET":
         return flask.render_template("login.html")
 
-    email = flask.request.form["email"]
-    password = flask.request.form["password"]
+    email = sanitize.email(flask.request.form["email"])
+    password = sanitize.password(flask.request.form["password"])
 
     if not email or not password:
         flask.flash("Brakuje jednego z pól", "error")
+        logger.info("invalid login request")
         return flask.render_template("bad_request.html"), 401
 
     user = userorm.User(email)
     if not user.user_id or not user.check_password(password):
         flask.flash("Zły e-mail lub hasło", "error")
+        logger.warning(f"invalid password or username for {email}")
         return flask.redirect(flask.url_for("login"))
 
     user.create_session(settings.SESSION_TIMEOUT)
     flask.flash("Witaj {}".format(email), "success")
+    logger.info(f"user logged in successfully {email}")
 
     r = flask.make_response(flask.redirect(flask.url_for("index")))
     r.set_cookie(
@@ -304,6 +339,7 @@ def login():
         samesite="Strict",
         secure=True,
     )
+
     return r
 
 
@@ -312,10 +348,12 @@ def register():
     if flask.request.method == "GET":
         return flask.render_template("register.html")
 
-    login = flask.request.form["login"]
-    email = flask.request.form["email"]
-    password = flask.request.form["password"]
-    confirm_password = flask.request.form["confirm_password"]
+    login = sanitize.login(flask.request.form["login"])
+    email = sanitize.email(flask.request.form["email"])
+    password = sanitize.password(flask.request.form["password"])
+    confirm_password = sanitize.password(
+        flask.request.form["confirm_password"]
+    )
 
     if not all([login, email, password, confirm_password]):
         flask.flash("Brak wszystkich wymaganych pól", "error")
@@ -333,6 +371,7 @@ def register():
     user.set_password(password)
     user.save()
     flask.flash("Zarejestrowno pomyślnie!", "success")
+    logging.info(f"created new user {email}")
     return flask.redirect(flask.url_for("login"))
 
 

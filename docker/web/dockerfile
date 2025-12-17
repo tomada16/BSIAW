@@ -7,7 +7,8 @@ RUN apk add --no-cache \
     py3-flask \
     py3-greenlet \
     nginx \
-    openssl
+    openssl \
+    aws-cli
 
 # Virtualenv for Python packages we need via pip
 RUN python3 -m venv /opt/venv
