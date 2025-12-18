@@ -8,6 +8,7 @@ import flask_socketio
 import subprocess
 import threading
 import flask
+import datetime
 import time
 import sys
 import os
@@ -36,19 +37,32 @@ logger.addHandler(handler)
 
 
 def log_sync_task():
-    def thread_func():
+    while True:
+        filename = datetime.datetime.now().strftime("bsiaw-%Y-%m-%d.log")
+        if not os.path.exists("/var/log/bsiaw"):
+            time.sleep(5)
+            continue
+
         try:
             subprocess.run(
-                ["aws", "s3", "mv", "/var/log/bsiaw", "s3://bsiaw-app-logs"],
+                [
+                    "aws",
+                    "s3",
+                    "cp",
+                    "/var/log/bsiaw",
+                    f"s3://bsiaw-app-logs/{filename}",
+                ],
                 check=True,
             )
+
         except subprocess.CalledProcessError:
             print("Failed to push logs to s3")
             logger.error("failed to push logs to s3")
 
         time.sleep(5)
 
-    threading.Thread(target=thread_func, daemon=True)
+
+threading.Thread(target=log_sync_task, daemon=True).start()
 
 
 # ------------------------------------------------------------
