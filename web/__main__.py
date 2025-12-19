@@ -40,7 +40,7 @@ def log_sync_task():
     while True:
         filename = datetime.datetime.now().strftime("bsiaw-%Y-%m-%d.log")
         if not os.path.exists("/var/log/bsiaw"):
-            time.sleep(5)
+            time.sleep(30)
             continue
 
         try:
@@ -59,7 +59,7 @@ def log_sync_task():
             print("Failed to push logs to s3")
             logger.error("failed to push logs to s3")
 
-        time.sleep(5)
+        time.sleep(30)
 
 
 threading.Thread(target=log_sync_task, daemon=True).start()
